@@ -1,0 +1,72 @@
+/**
+ * PingMe 自动签到+广告奖励参数
+ */
+
+function getQueryParams(url) {
+  const query = url.split('?')[1] || '';
+  const params = query.split('&');
+  const result = {};
+  for (const pair of params) {
+    const [k, v] = pair.split('=');
+    if (k) result[k] = decodeURIComponent(v || '');
+  }
+  return result;
+}
+
+function buildQueryString(params) {
+  return Object.entries(params).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+}
+
+const queryParams = getQueryParams($request.url);
+const queryString = buildQueryString(queryParams);
+
+const headers = {
+  'User-Agent': 'PingMe/1.8.7 (tel.pingme; build:2; iOS 18.5.0) Alamofire/5.4.3',
+  'Host': 'api.pingmeapp.net',
+  'Connection': 'keep-alive',
+  'Accept-Language': 'zh-Hans-CN;q=1.0, zh-Hant-CN;q=0.9, en-CN;q=0.8',
+  'Accept-Encoding': 'br;q=1.0, gzip;q=0.9, deflate;q=0.8',
+  'Accept': 'application/json'
+};
+
+const bonusUrl = `https://api.pingmeapp.net/app/videoBonus?${queryString}`;
+const checkInUrl = `https://api.pingmeapp.net/app/checkIn?${queryString}`;
+
+const bonusRequest = {
+  url: bonusUrl,
+  method: 'GET',
+  headers: headers
+};
+
+const checkInRequest = {
+  url: checkInUrl,
+  method: 'GET',
+  headers: headers
+};
+
+let notifyMsg = [];
+
+$task.fetch(bonusRequest).then(bonusRes => {
+  try {
+    const bonusData = JSON.parse(bonusRes.body);
+    notifyMsg.push("广告奖励：" + (bonusData?.result?.bonusHint || bonusData.retmsg || "未知返回"));
+  } catch (e) {
+    notifyMsg.push("广告奖励解析失败：" + bonusRes.body.slice(0, 80) + "...");
+  }
+
+  return $task.fetch(checkInRequest);
+}).then(checkInRes => {
+  try {
+    const checkData = JSON.parse(checkInRes.body);
+    notifyMsg.push("每日签到：" + (checkData?.result?.bonusHint || checkData.retmsg || "未知返回"));
+  } catch (e) {
+    notifyMsg.push("每日签到解析失败：" + checkInRes.body.slice(0, 80) + "...");
+  }
+
+  $notify("PingMe 签到与奖励", "等待30秒在继续，连续刷任务会风控", notifyMsg.join('\n'));
+  $done({});
+}).catch(err => {
+  console.log("[PingMe 任务失败]：", err.error);
+  $notify("PingMe 签到与奖励失败", "", err.error || "未知错误");
+  $done({});
+});
