@@ -1,0 +1,11 @@
+#!name=PingMe 签到与奖励
+#!desc=PingMe 自动签到+广告奖励（远程脚本版本）
+#!author=gg
+#!version=1.0
+#!homepage=https://pingmeapp.net
+
+[Script]
+PingMe = type=http-request,pattern=^https:\/\/api\.pingmeapp\.net\/app\/queryBalanceAndBonus,requires-body=0,script-path=https://example.com/Pme_surge.js
+
+[MITM]
+hostname = api.pingmeapp.net
